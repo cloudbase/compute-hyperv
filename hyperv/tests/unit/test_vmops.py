@@ -952,6 +952,8 @@ class VMOpsTestCase(test_base.HyperVBaseTestCase):
                             block_device_info=mock.sentinel.FAKE_BD_INFO,
                             network_info=mock.sentinel.fake_network_info)
 
+        self._vmops._pathutils.get_instance_dir.assert_called_once_with(
+            mock_instance.name)
         self._vmops._vmutils.vm_exists.assert_called_with(
             mock_instance.name)
         mock_power_off.assert_called_once_with(mock_instance)
@@ -963,6 +965,9 @@ class VMOpsTestCase(test_base.HyperVBaseTestCase):
             mock_instance.name)
         mock_unplug_vifs.assert_called_once_with(
             mock_instance, mock.sentinel.fake_network_info)
+        mock_clear_dir_cache = (
+            self._vmops._pathutils.remove_instance_dir_from_cache)
+        mock_clear_dir_cache.assert_called_once_with(mock_instance.name)
 
     def test_destroy_inexistent_instance(self):
         mock_instance = fake_instance.fake_instance_obj(self.context)

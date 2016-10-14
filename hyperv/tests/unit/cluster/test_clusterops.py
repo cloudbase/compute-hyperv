@@ -43,6 +43,7 @@ class ClusterOpsTestCase(test_base.HyperVBaseTestCase):
         self.clusterops._vmutils = mock.MagicMock()
         self.clusterops._network_api = mock.MagicMock()
         self.clusterops._vmops = mock.MagicMock()
+        self.clusterops._pathutils = mock.MagicMock()
         self.clusterops._serial_console_ops = mock.MagicMock()
 
     def test_get_instance_host(self):
@@ -159,6 +160,11 @@ class ClusterOpsTestCase(test_base.HyperVBaseTestCase):
 
         self.clusterops._vmops.unplug_vifs.assert_called_once_with(instance,
             self.clusterops._network_api.get_instance_nw_info.return_value)
+
+        mock_clear_dir_cache = (
+            self.clusterops._pathutils.remove_instance_dir_from_cache)
+        mock_clear_dir_cache.assert_called_once_with(
+            mock.sentinel.instance_name)
 
     @mock.patch.object(clusterops, 'LOG')
     @mock.patch.object(clusterops.ClusterOps, '_get_instance_by_name')

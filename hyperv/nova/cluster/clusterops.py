@@ -49,6 +49,7 @@ class ClusterOps(object):
     def __init__(self):
         self._clustutils = utilsfactory.get_clusterutils()
         self._vmutils = utilsfactory.get_vmutils()
+        self._pathutils = utilsfactory.get_pathutils()
         self._clustutils.check_cluster_state()
         self._instance_map = {}
 
@@ -133,6 +134,7 @@ class ClusterOps(object):
         if old_host and old_host.upper() == self._this_node.upper():
             LOG.debug('Actions at source node.')
             self._vmops.unplug_vifs(instance, nw_info)
+            self._pathutils.remove_instance_dir_from_cache(instance_name)
             return
         elif new_host.upper() != self._this_node.upper():
             LOG.debug('Instance %s did not failover to this node.',

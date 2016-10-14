@@ -221,6 +221,10 @@ class MigrationOpsTestCase(test_base.HyperVBaseTestCase):
         get_instance_migr_revert_dir.assert_called_with(mock_instance.name,
                                                         remove_dir=True)
 
+        mock_clear_dir_cache = (
+            self._migrationops._pathutils.remove_instance_dir_from_cache)
+        mock_clear_dir_cache.assert_called_once_with(mock_instance.name)
+
     def test_revert_migration_files(self):
         instance_path = (
             self._migrationops._pathutils.get_instance_dir.return_value)

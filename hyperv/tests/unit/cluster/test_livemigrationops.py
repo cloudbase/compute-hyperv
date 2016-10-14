@@ -31,6 +31,7 @@ class ClusterLiveMigrationOpsTestCase(test_base.HyperVBaseTestCase):
         self.livemigrops = livemigrationops.ClusterLiveMigrationOps()
         self.livemigrops._clustutils = mock.MagicMock()
         self.livemigrops._volumeops = mock.MagicMock()
+        self.livemigrops._pathutils = mock.MagicMock()
 
     def test_is_instance_clustered(self):
         ret = self.livemigrops._is_instance_clustered(
@@ -124,9 +125,15 @@ class ClusterLiveMigrationOpsTestCase(test_base.HyperVBaseTestCase):
     @mock.patch.object(base_livemigrationops.LiveMigrationOps,
                        'post_live_migration')
     def test_post_live_migration_clustered(self, mock_post_live_migration):
+        mock_instance = fake_instance.fake_instance_obj(self._fake_context)
+
         self.livemigrops.post_live_migration(self._fake_context,
                                              mock.sentinel.fake_instance,
                                              mock.sentinel.bdi)
+
+        mock_clear_dir_cache = (
+            self.livemigrops._pathutils.remove_instance_dir_from_cache)
+        mock_clear_dir_cache.assert_called_once_with(mock_instance.name)
 
         self.assertFalse(mock_post_live_migration.called)
 

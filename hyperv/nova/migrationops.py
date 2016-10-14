@@ -152,6 +152,7 @@ class MigrationOps(object):
 
         self._pathutils.get_instance_migr_revert_dir(instance.name,
                                                      remove_dir=True)
+        self._pathutils.remove_instance_dir_from_cache(instance.name)
 
     def _revert_migration_files(self, instance_name):
         instance_path = self._pathutils.get_instance_dir(

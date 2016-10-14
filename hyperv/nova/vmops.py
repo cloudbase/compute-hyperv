@@ -675,6 +675,10 @@ class VMOps(object):
                 destroy_disks=True):
         instance_name = instance.name
         LOG.info(_LI("Got request to destroy instance"), instance=instance)
+
+        # Ensure we have the instance dir.
+        self._pathutils.get_instance_dir(instance.name)
+
         try:
             if self._vmutils.vm_exists(instance_name):
 
@@ -690,6 +694,8 @@ class VMOps(object):
             if destroy_disks:
                 self._delete_disk_files(instance_name)
             self.unplug_vifs(instance, network_info)
+
+            self._pathutils.remove_instance_dir_from_cache(instance.name)
         except Exception:
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE('Failed to destroy instance: %s'),
