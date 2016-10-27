@@ -25,7 +25,6 @@ import time
 from eventlet import timeout as etimeout
 from nova.api.metadata import base as instance_metadata
 from nova.compute import vm_states
-import nova.conf
 from nova import exception
 from nova import objects
 from nova import utils
@@ -97,7 +96,7 @@ hyperv_opts = [
                      'RDS-Virtualization feature has to be enabled')
 ]
 
-CONF = nova.conf.CONF
+CONF = cfg.CONF
 CONF.register_opts(hyperv_opts, 'hyperv')
 CONF.import_opt('use_cow_images', 'nova.virt.driver')
 
