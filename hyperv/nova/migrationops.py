@@ -25,6 +25,7 @@ from os_win import utilsfactory
 from oslo_log import log as logging
 from oslo_utils import excutils
 from oslo_utils import units
+from oslo_serialization import jsonutils
 
 from hyperv.i18n import _, _LE
 from hyperv.nova import block_device_manager
@@ -47,50 +48,41 @@ class MigrationOps(object):
         self._imagecache = imagecache.ImageCache()
         self._block_dev_manager = block_device_manager.BlockDeviceInfoManager()
 
-    def _migrate_disk_files(self, instance_name, disk_files, dest):
+    def _move_disk_files(self, instance_name, disk_files, dest):
         # TODO(mikal): it would be nice if this method took a full instance,
         # because it could then be passed to the log messages below.
+
+        disk_info = []
+
         instance_path = self._pathutils.get_instance_dir(instance_name)
-        dest_path = self._pathutils.get_instance_dir(instance_name, dest)
+        temp_path = self._pathutils.get_instnace_migr_temp_dir(instance_name,
+            remove_dir=True, create_dir=True)
         revert_path = self._pathutils.get_instance_migr_revert_dir(
             instance_name, remove_dir=True, create_dir=True)
 
-        shared_storage = (self._pathutils.exists(dest_path) and
-                          self._pathutils.check_dirs_shared_storage(
-                              instance_path, dest_path))
         try:
-            if shared_storage:
-                # Since source and target are the same, we copy the files to
-                # a temporary location before moving them into place.
-                # This applies when the migration target is the source host or
-                # when shared storage is used for the instance files.
-                dest_path = '%s_tmp' % instance_path
-
-            self._pathutils.check_remove_dir(dest_path)
-            self._pathutils.makedirs(dest_path)
-
             for disk_file in disk_files:
-                # Skip the config drive as the instance is already configured
-                if os.path.basename(disk_file).lower() != 'configdrive.vhd':
-                    LOG.debug('Copying disk "%(disk_file)s" to '
-                              '"%(dest_path)s"',
-                              {'disk_file': disk_file, 'dest_path': dest_path})
-                    self._pathutils.copy(disk_file, dest_path)
+                LOG.debug('Copying disk "%(disk_files)s" to temporary path '
+                      '"%(temp_path)s"',
+                      {'disk_files': disk_files, 'temp_path': temp_path})
+                self._pathutils.copy(disk_file, temp_path)
+                disk_file_name = os.path.basename(disk_file)
+                disk_info.append({
+                        "path": os.path.join(temp_path, disk_file_name)
+                    })
 
             self._pathutils.move_folder_files(instance_path, revert_path)
-
-            if shared_storage:
-                self._pathutils.move_folder_files(dest_path, instance_path)
+            return disk_info
         except Exception:
             with excutils.save_and_reraise_exception():
                 self._cleanup_failed_disk_migration(instance_path, revert_path,
-                                                    dest_path)
+                                                    temp_path)
 
     def _cleanup_failed_disk_migration(self, instance_path,
-                                       revert_path, dest_path):
+                                       revert_path, temp_path):
         try:
-            if dest_path and self._pathutils.exists(dest_path):
-                self._pathutils.rmtree(dest_path)
+            if temp_path and self._pathutils.exists(temp_path):
+                self._pathutils.rmtree(temp_path)
             if self._pathutils.exists(revert_path):
                 self._pathutils.move_folder_files(revert_path, instance_path)
                 self._pathutils.rmtree(revert_path)
@@ -140,18 +132,24 @@ class MigrationOps(object):
          volume_drives) = self._vmutils.get_vm_storage_paths(instance.name)
 
         if disk_files:
-            self._migrate_disk_files(instance.name, disk_files, dest)
+            disk_info = self._move_disk_files(instance.name, disk_files, dest)
+        else:
+            disk_info = []
 
         self._vmops.destroy(instance, destroy_disks=False)
 
-        # disk_info is not used
-        return ""
+        # disk_info is a list of dicts, each representing a disk
+        return jsonutils.dumps(disk_info)
 
     def confirm_migration(self, migration, instance, network_info):
         LOG.debug("confirm_migration called", instance=instance)
 
+        self._pathutils.get_instance_dir(instance.name,
+                                         remove_dir=True)
         self._pathutils.get_instance_migr_revert_dir(instance.name,
                                                      remove_dir=True)
+        self._pathutils.get_instnace_migr_temp_dir(instance.name,
+                                                   remove_dir=True)
         self._pathutils.remove_instance_dir_from_cache(instance.name)
 
     def _revert_migration_files(self, instance_name):
@@ -281,6 +279,8 @@ class MigrationOps(object):
                          block_device_info=None, power_on=True):
         LOG.debug("finish_migration called", instance=instance)
 
+        self._migrate_disks_from_source(migration, instance, disk_info)
+
         instance_name = instance.name
 
         vm_gen = self._vmops.get_image_vm_generation(instance.uuid, image_meta)
@@ -318,6 +318,18 @@ class MigrationOps(object):
         self._vmops.set_boot_order(vm_gen, block_device_info, instance_name)
         if power_on:
             self._vmops.power_on(instance)
+
+    def _migrate_disks_from_source(self, migration, instance, disk_info):
+
+        disk_info = jsonutils.loads(disk_info)
+        instance_dir = self._pathutils.get_instance_dir(instance.name,
+                                                        create_dir=True)
+        # we process disks individually, assuming they weren't all moved to
+        # the same path, though this should never be the case
+        for disk in disk_info:
+            disk_path = self._pathutils._get_remote_unc_path(
+                migration.source_compute, disk['path'])
+            self._pathutils.copy(disk_path, instance_dir)
 
     def _check_ephemeral_disks(self, instance, ephemerals,
                                resize_instance=False):

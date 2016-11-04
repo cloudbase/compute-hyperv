@@ -150,6 +150,12 @@ class PathUtils(pathutils.PathUtils):
 
         return instance_dir
 
+    def get_instnace_migr_temp_dir(self, instance_name, create_dir=False,
+                                   remove_dir=False):
+        dir_name = '%s_tmp' % instance_name
+        return self._get_instances_sub_dir(dir_name, None, create_dir,
+                                           remove_dir)
+
     def get_instance_dir(self, instance_name, remote_server=None,
                          create_dir=True, remove_dir=False):
         instance_dir = self._get_instance_dir(instance_name,
