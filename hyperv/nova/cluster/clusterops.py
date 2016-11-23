@@ -29,6 +29,7 @@ from oslo_log import log as logging
 from oslo_service import loopingcall
 
 from hyperv.i18n import _LI, _LE
+from hyperv.nova import pathutils
 from hyperv.nova import serialconsoleops
 from hyperv.nova import vmops
 
@@ -48,7 +49,7 @@ class ClusterOps(object):
     def __init__(self):
         self._clustutils = utilsfactory.get_clusterutils()
         self._vmutils = utilsfactory.get_vmutils()
-        self._pathutils = utilsfactory.get_pathutils()
+        self._pathutils = pathutils.PathUtils()
         self._clustutils.check_cluster_state()
         self._instance_map = {}
 
