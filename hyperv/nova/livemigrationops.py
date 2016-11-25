@@ -104,8 +104,6 @@ class LiveMigrationOps(object):
                                          create_dir=False,
                                          remove_dir=True)
 
-        self._pathutils.remove_instance_dir_from_cache(instance.name)
-
     def post_live_migration_at_destination(self, ctxt, instance_ref,
                                            network_info, block_migration):
         LOG.debug("post_live_migration_at_destination called",

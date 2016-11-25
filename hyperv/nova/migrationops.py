@@ -17,6 +17,7 @@
 Management class for migration / resize operations.
 """
 import os
+import shutil
 
 from nova import exception
 from nova.virt import configdrive
@@ -48,17 +49,24 @@ class MigrationOps(object):
         self._imagecache = imagecache.ImageCache()
         self._block_dev_manager = block_device_manager.BlockDeviceInfoManager()
 
-    def _move_disk_files(self, instance_name, disk_files, dest):
+    def _move_disk_files(self, instance, disk_files, dest):
         # TODO(mikal): it would be nice if this method took a full instance,
         # because it could then be passed to the log messages below.
 
         disk_info = []
+        instance_name = instance.name
 
         instance_path = self._pathutils.get_instance_dir(instance_name)
         temp_path = self._pathutils.get_instnace_migr_temp_dir(instance_name,
             remove_dir=True, create_dir=True)
         revert_path = self._pathutils.get_instance_migr_revert_dir(
             instance_name, remove_dir=True, create_dir=True)
+
+        # We destroy the instance so that the instance dir may be moved. Also,
+        # we fetch the instane dir first as we rely on the instance to exist
+        # in order to locate it if residing at a different location than the
+        # configured one.
+        self._vmops.destroy(instance, destroy_disks=False)
 
         try:
             for disk_file in disk_files:
@@ -71,7 +79,9 @@ class MigrationOps(object):
                         "path": os.path.join(temp_path, disk_file_name)
                     })
 
-            self._pathutils.move_folder_files(instance_path, revert_path)
+            # TODO(lpetrut): we should switch to using win32 api when os-win
+            # supports this.
+            shutil.move(instance_path, revert_path)
             return disk_info
         except Exception:
             with excutils.save_and_reraise_exception():
@@ -84,8 +94,7 @@ class MigrationOps(object):
             if temp_path and self._pathutils.exists(temp_path):
                 self._pathutils.rmtree(temp_path)
             if self._pathutils.exists(revert_path):
-                self._pathutils.move_folder_files(revert_path, instance_path)
-                self._pathutils.rmtree(revert_path)
+                shutil.move(revert_path, instance_path)
         except Exception as ex:
             # Log and ignore this exception
             LOG.exception(ex)
@@ -132,11 +141,10 @@ class MigrationOps(object):
          volume_drives) = self._vmutils.get_vm_storage_paths(instance.name)
 
         if disk_files:
-            disk_info = self._move_disk_files(instance.name, disk_files, dest)
+            disk_info = self._move_disk_files(instance, disk_files, dest)
         else:
             disk_info = []
-
-        self._vmops.destroy(instance, destroy_disks=False)
+            self._vmops.destroy(instance, destroy_disks=False)
 
         # disk_info is a list of dicts, each representing a disk
         return jsonutils.dumps(disk_info)
@@ -144,13 +152,10 @@ class MigrationOps(object):
     def confirm_migration(self, migration, instance, network_info):
         LOG.debug("confirm_migration called", instance=instance)
 
-        self._pathutils.get_instance_dir(instance.name,
-                                         remove_dir=True)
         self._pathutils.get_instance_migr_revert_dir(instance.name,
                                                      remove_dir=True)
         self._pathutils.get_instnace_migr_temp_dir(instance.name,
                                                    remove_dir=True)
-        self._pathutils.remove_instance_dir_from_cache(instance.name)
 
     def _revert_migration_files(self, instance_name):
         instance_path = self._pathutils.get_instance_dir(

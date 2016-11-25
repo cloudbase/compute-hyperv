@@ -53,8 +53,6 @@ ERROR_INVALID_NAME = 123
 
 class PathUtils(pathutils.PathUtils):
 
-    _instance_dir_cache = {}
-
     def __init__(self):
         super(PathUtils, self).__init__()
         self._smbutils = utilsfactory.get_smbutils()
@@ -115,16 +113,6 @@ class PathUtils(pathutils.PathUtils):
                                            remove_dir)
 
     def _get_instance_dir(self, instance_name, remote_server=None):
-        # We cache the instance dir in order to support the scenario
-        # in which instance files are placed at a different location than
-        # the configured one, in which case we rely on the instance itself
-        # in order to locate it.
-        # The path will have to be removed from cache whenever an instance
-        # is migrated or deleted.
-        cached_dir = self._instance_dir_cache.get(instance_name)
-        if not remote_server and cached_dir:
-            return cached_dir
-
         instance_dir = self._get_instances_sub_dir(
             instance_name, remote_server,
             create_dir=False, remove_dir=False)
@@ -145,9 +133,6 @@ class PathUtils(pathutils.PathUtils):
             except os_win_exc.HyperVVMNotFoundException:
                 pass
 
-        if not remote_server:
-            self._instance_dir_cache[instance_name] = instance_dir
-
         return instance_dir
 
     def get_instnace_migr_temp_dir(self, instance_name, create_dir=False,
@@ -166,9 +151,6 @@ class PathUtils(pathutils.PathUtils):
                         remove_dir=remove_dir)
 
         return instance_dir
-
-    def remove_instance_dir_from_cache(self, instance_name):
-        self._instance_dir_cache.pop(instance_name, None)
 
     def _lookup_vhd_path(self, instance_name, vhd_path_func,
                          *args, **kwargs):
