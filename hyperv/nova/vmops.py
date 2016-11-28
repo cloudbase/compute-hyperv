@@ -252,13 +252,13 @@ class VMOps(object):
 
     def _is_resize_needed(self, vhd_path, old_size, new_size, instance):
         if new_size < old_size:
-            err_msg = _('Cannot resize the image to a size smaller than the VHD '
-                        'max internal size. '
+            err_msg = _('Cannot resize the image to a size smaller than '
+                        'the VHD max internal size. '
                         'Internal size: %(vhd_size)s. '
                         'Requested disk size: %(root_vhd_size)s. ')
             raise exception.FlavorDiskTooSmall(err_msg %
-                {'vhd_size': vhd_size,
-                 'root_vhd_size': root_vhd_size})
+                {'vhd_size': old_size,
+                 'root_vhd_size': new_size})
         elif new_size > old_size:
             LOG.debug("Resizing VHD %(vhd_path)s to new "
                       "size %(new_size)s",
