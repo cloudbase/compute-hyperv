@@ -110,6 +110,29 @@ class ClusterOpsTestCase(test_base.HyperVBaseTestCase):
         self.clusterops._clustutils.monitor_vm_failover.assert_called_with(
             self.clusterops._failover_migrate)
 
+    @mock.patch.object(clusterops.ClusterOps, '_failover_migrate')
+    @mock.patch.object(clusterops.objects.InstanceList, 'get_by_filters')
+    def test_reclaim_failovered_instances(self, mock_get_instances,
+                                          mock_failover_migrate):
+        self.clusterops._this_node = 'fake_node'
+        self.clusterops._vmutils.list_instances.return_value = [
+            'fake_vm1', 'fake_vm2', 'fake_vm3']
+
+        mock_instance1 = mock.MagicMock(host='other_host')
+        mock_instance1.configure_mock(name='fake_vm1')
+        mock_instance2 = mock.MagicMock(host=self.clusterops._this_node)
+        mock_instance2.configure_mock(name='fake_vm2')
+        mock_get_instances.return_value = [mock_instance1, mock_instance2]
+
+        self.clusterops.reclaim_failovered_instances()
+
+        self.clusterops._vmutils.list_instances.assert_called_once_with()
+        mock_get_instances.assert_called_once_with(
+            self.clusterops._context, {'deleted': False},
+            expected_attrs=['id', 'uuid', 'name', 'host'])
+        mock_failover_migrate.assert_called_once_with(
+            'fake_vm1', 'other_host', self.clusterops._this_node)
+
     @mock.patch.object(clusterops, 'LOG')
     @mock.patch.object(clusterops.ClusterOps, '_get_instance_by_name')
     def test_failover_migrate_no_instance(self, mock_get_instance_by_name,

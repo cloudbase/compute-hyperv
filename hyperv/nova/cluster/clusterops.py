@@ -100,6 +100,28 @@ class ClusterOps(object):
         self._daemon.start(
             interval=CONF.hyperv.cluster_event_check_interval)
 
+    def reclaim_failovered_instances(self):
+        # NOTE(claudiub): some instances might have failovered while the
+        # nova-compute service was down. Those instances will have to be
+        # reclaimed by this node.
+        host_instances = self._vmutils.list_instances()
+        expected_attrs = ['id', 'uuid', 'name', 'host']
+        nova_instances = objects.InstanceList.get_by_filters(
+            self._context, {'deleted': False},
+            expected_attrs=expected_attrs)
+
+        # filter out instances that are not on this host.
+        nova_instances = [instance for instance in nova_instances if
+                          instance.name in host_instances]
+
+        # filter out instances that are known to be on this host.
+        nova_instances = [instance for instance in nova_instances if
+                          self._this_node.upper() != instance.host.upper()]
+
+        for instance in nova_instances:
+            self._failover_migrate(instance.name, instance.host,
+                                   self._this_node)
+
     def _failover_migrate(self, instance_name, old_host, new_host):
         """This method will check if the generated event is a legitimate
         failover to this node. If it is, it will proceed to prepare the
