@@ -14,6 +14,7 @@
 
 import os
 
+import ddt
 from eventlet import timeout as etimeout
 import mock
 from nova.compute import vm_states
@@ -40,6 +41,7 @@ from hyperv.tests.unit import test_base
 CONF = cfg.CONF
 
 
+@ddt.ddt
 class VMOpsTestCase(test_base.HyperVBaseTestCase):
     """Unit tests for the Hyper-V VMOps class."""
 
@@ -540,12 +542,15 @@ class VMOpsTestCase(test_base.HyperVBaseTestCase):
                               mock_set_qos_specs, mock_get_vif_driver,
                               mock_requires_certificate,
                               mock_requires_secure_boot,
-                              enable_instance_metrics,
+                              enable_instance_metrics=True,
                               vm_gen=constants.VM_GEN_1, vnuma_enabled=False,
-                              requires_sec_boot=True, remotefx=False):
+                              requires_sec_boot=True, remotefx=False,
+                              instance_automatic_shutdown=False):
         mock_vif_driver = mock_get_vif_driver()
         self.flags(dynamic_memory_ratio=2.0, group='hyperv')
         self.flags(enable_instance_metrics_collection=enable_instance_metrics,
+                   group='hyperv')
+        self.flags(instance_automatic_shutdown=instance_automatic_shutdown,
                    group='hyperv')
         root_device_info = mock.sentinel.ROOT_DEV_INFO
         block_device_info = {'ephemerals': [], 'block_device_mapping': []}
@@ -566,6 +571,11 @@ class VMOpsTestCase(test_base.HyperVBaseTestCase):
             mem_per_numa, cpus_per_numa = (None, None)
             dynamic_memory_ratio = CONF.hyperv.dynamic_memory_ratio
 
+        exp_host_shutdown_action = (
+            os_win_const.HOST_SHUTDOWN_ACTION_SHUTDOWN
+            if CONF.hyperv.instance_automatic_shutdown
+            else None)
+
         flavor = flavor_obj.Flavor(**test_flavor.fake_flavor)
         if remotefx is True:
             flavor.extra_specs['hyperv:remotefx'] = "1920x1200,2"
@@ -579,7 +589,8 @@ class VMOpsTestCase(test_base.HyperVBaseTestCase):
                               block_device_info=block_device_info,
                               root_device=root_device_info,
                               vm_gen=vm_gen,
-                              image_meta=mock.sentinel.image_meta)
+                              image_meta=mock.sentinel.image_meta,
+                              host_shutdown_action=exp_host_shutdown_action)
         else:
             self._vmops.create_instance(
                     instance=mock_instance,
@@ -587,7 +598,8 @@ class VMOpsTestCase(test_base.HyperVBaseTestCase):
                     block_device_info=block_device_info,
                     root_device=root_device_info,
                     vm_gen=vm_gen,
-                    image_meta=mock.sentinel.image_meta)
+                    image_meta=mock.sentinel.image_meta,
+                    host_shutdown_action=exp_host_shutdown_action)
             if remotefx is True:
                 mock_configure_remotefx.assert_called_once_with(
                     mock_instance,
@@ -600,7 +612,8 @@ class VMOpsTestCase(test_base.HyperVBaseTestCase):
             self._vmops._vmutils.update_vm.assert_called_once_with(
                 mock_instance.name, mock_instance.memory_mb, mem_per_numa,
                 mock_instance.vcpus, cpus_per_numa,
-                CONF.hyperv.limit_cpu_features, dynamic_memory_ratio)
+                CONF.hyperv.limit_cpu_features, dynamic_memory_ratio,
+                host_shutdown_action=exp_host_shutdown_action)
 
             mock_create_scsi_ctrl = self._vmops._vmutils.create_scsi_controller
             mock_create_scsi_ctrl.assert_called_once_with(mock_instance.name)
@@ -636,7 +649,7 @@ class VMOpsTestCase(test_base.HyperVBaseTestCase):
                     mock_instance.name, mock_requires_certificate.return_value)
 
     def test_create_instance(self):
-        self._test_create_instance(enable_instance_metrics=True)
+        self._test_create_instance()
 
     def test_create_instance_exception(self):
         # Secure Boot requires Generation 2 VMs. If boot is required while the
@@ -658,6 +671,9 @@ class VMOpsTestCase(test_base.HyperVBaseTestCase):
     def test_create_instance_with_remote_fx_gen2(self):
         self._test_create_instance(enable_instance_metrics=False,
                                    remotefx=True)
+
+    def test_create_instance_automatic_shutdown(self):
+        self._test_create_instance(instance_automatic_shutdown=True)
 
     @mock.patch.object(vmops.volumeops.VolumeOps, 'attach_volume')
     def test_attach_root_device_volume(self, mock_attach_volume):

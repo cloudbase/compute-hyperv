@@ -92,7 +92,13 @@ hyperv_opts = [
                 default=False,
                 help='Enables RemoteFX. This requires at least one DirectX 11 '
                      'capable graphic adapter for Windows Server 2012 R2 and '
-                     'RDS-Virtualization feature has to be enabled')
+                     'RDS-Virtualization feature has to be enabled'),
+    cfg.StrOpt('instance_automatic_shutdown',
+               default=False,
+               help='Automatically shutdown instances when the host is '
+                    'shutdown. By default, instances will be saved, which '
+                    'adds a disk overhead. Changing this option will not '
+                    'affect existing instances.')
 ]
 
 CONF = cfg.CONF
@@ -415,6 +421,11 @@ class VMOps(object):
             dynamic_memory_ratio = CONF.hyperv.dynamic_memory_ratio
             vnuma_enabled = False
 
+        host_shutdown_action = (
+            os_win_const.HOST_SHUTDOWN_ACTION_SHUTDOWN
+            if CONF.hyperv.instance_automatic_shutdown
+            else None)
+
         self._vmutils.create_vm(instance_name,
                                 vnuma_enabled,
                                 vm_gen,
@@ -427,7 +438,8 @@ class VMOps(object):
                                 instance.vcpus,
                                 cpus_per_numa_node,
                                 CONF.hyperv.limit_cpu_features,
-                                dynamic_memory_ratio)
+                                dynamic_memory_ratio,
+                                host_shutdown_action=host_shutdown_action)
 
         flavor_extra_specs = instance.flavor.extra_specs
         remote_fx_config = flavor_extra_specs.get(
