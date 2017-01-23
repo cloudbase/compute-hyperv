@@ -21,8 +21,8 @@ from nova import exception
 from os_win import exceptions as os_win_exc
 from os_win.utils import pathutils
 from os_win import utilsfactory
-from oslo_log import log as logging
 from oslo_config import cfg
+from oslo_log import log as logging
 
 from hyperv.i18n import _, _LI
 from hyperv.nova import constants

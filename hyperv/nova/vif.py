@@ -16,7 +16,7 @@
 
 import abc
 
-from nova.i18n import _
+import nova.network
 from nova.network import model as network_model
 from os_win import utilsfactory
 from oslo_config import cfg
