@@ -1765,9 +1765,9 @@ class VMOpsTestCase(test_base.HyperVBaseTestCase):
 
         self._vmops._set_instance_disk_qos_specs(mock_instance)
         mock_get_local_disks.assert_called_once_with(mock_instance.name)
-        expected_calls = [mock.call(mock_instance.name, disk_path,
-                                    mock.sentinel.min_iops,
-                                    mock.sentinel.max_iops)
+        expected_calls = [mock.call(disk_path,
+                                    mock.sentinel.max_iops,
+                                    mock.sentinel.min_iops)
                           for disk_path in mock_local_disks]
         mock_set_qos_specs.assert_has_calls(expected_calls)
 
