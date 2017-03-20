@@ -41,12 +41,13 @@ class ImageCacheTestCase(test_base.HyperVBaseTestCase):
 
     def setUp(self):
         super(ImageCacheTestCase, self).setUp()
+        self._lazy_patch_autospec_class(
+            imagecache.pathutils.PathUtils)
 
         self.context = 'fake-context'
         self.instance = fake_instance.fake_instance_obj(self.context)
 
         self.imagecache = imagecache.ImageCache()
-        self.imagecache._pathutils = mock.MagicMock()
         self.imagecache._vhdutils = mock.MagicMock()
 
     def _test_get_root_vhd_size_gb(self, old_flavor=True):

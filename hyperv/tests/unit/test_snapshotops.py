@@ -28,10 +28,12 @@ class SnapshotOpsTestCase(test_base.HyperVBaseTestCase):
 
     def setUp(self):
         super(SnapshotOpsTestCase, self).setUp()
+        self._lazy_patch_autospec_class(
+            snapshotops.pathutils.PathUtils)
 
         self.context = 'fake_context'
         self._snapshotops = snapshotops.SnapshotOps()
-        self._snapshotops._pathutils = mock.MagicMock()
+        self._snapshotops._pathutils.open = mock.mock_open()
         self._snapshotops._vmutils = mock.MagicMock()
         self._snapshotops._vhdutils = mock.MagicMock()
 
@@ -102,12 +104,12 @@ class SnapshotOpsTestCase(test_base.HyperVBaseTestCase):
         else:
             mock_save_glance_image.assert_called_once_with(
                 self.context, mock.sentinel.IMAGE_ID, dest_vhd_path)
-        self._snapshotops._pathutils.copyfile.has_calls(expected)
+        self._snapshotops._pathutils.copyfile.assert_has_calls(expected)
         expected_update = [
             mock.call(task_state=task_states.IMAGE_PENDING_UPLOAD),
             mock.call(task_state=task_states.IMAGE_UPLOADING,
                       expected_state=task_states.IMAGE_PENDING_UPLOAD)]
-        mock_update.has_calls(expected_update)
+        mock_update.assert_has_calls(expected_update)
         self._snapshotops._vmutils.remove_vm_snapshot.assert_called_once_with(
             fake_snapshot_path)
         self._snapshotops._pathutils.rmtree.assert_called_once_with(

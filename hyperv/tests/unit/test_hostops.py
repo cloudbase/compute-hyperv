@@ -42,13 +42,13 @@ class HostOpsTestCase(test_base.HyperVBaseTestCase):
     FAKE_LOCAL_IP = '10.11.12.13'
     FAKE_TICK_COUNT = 1000000
 
-    @mock.patch.object(hostops, 'api', mock.MagicMock())
     def setUp(self):
         super(HostOpsTestCase, self).setUp()
+        self._lazy_patch_autospec_class(
+            hostops.vmops.VMOps,
+            hostops.api.API,
+            hostops.pathutils.PathUtils)
         self._hostops = hostops.HostOps()
-        self._hostops._api = mock.MagicMock()
-        self._hostops._vmops = mock.MagicMock()
-        self._hostops._pathutils = mock.MagicMock()
         self._hostops._diskutils = mock.MagicMock()
 
     def test_get_cpu_info(self):

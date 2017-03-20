@@ -17,6 +17,7 @@
 import mock
 from os_win import utilsfactory
 
+from hyperv.nova import vmops
 from hyperv.tests import test
 
 
@@ -27,3 +28,29 @@ class HyperVBaseTestCase(test.NoDBTestCase):
         utilsfactory_patcher = mock.patch.object(utilsfactory, '_get_class')
         utilsfactory_patcher.start()
         self.addCleanup(utilsfactory_patcher.stop)
+
+    def _lazy_patch_autospec_class(self, *class_types):
+        for class_type in class_types:
+            # we're patching the class itself, so its return_value should be
+            # a lazy mock.
+            lazy_mock = mock.Mock(spec=class_type)
+            patcher = mock.patch(
+                '.'.join([class_type.__module__, class_type.__name__]),
+                mock.Mock(return_value=lazy_mock))
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+
+class MockSpecTestCase(HyperVBaseTestCase):
+
+    def test_spec(self):
+        self._lazy_patch_autospec_class(vmops.VMOps)
+        ops = vmops.VMOps()
+
+        ops.get_info(mock.sentinel.instance)
+        ops.get_info.assert_called_once_with(mock.sentinel.instance)
+
+        self.assertRaises(TypeError, ops.get_info)
+        self.assertRaises(TypeError, ops.get_info, mock.sentinel.foo,
+                          mock.sentinel.lish)
+        self.assertRaises(AttributeError, getattr, ops, 'nope')

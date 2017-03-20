@@ -31,7 +31,8 @@ class EventHandlerTestCase(test_base.HyperVBaseTestCase):
     @mock.patch.object(utilsfactory, 'get_vmutils')
     def setUp(self, mock_get_vmutils):
         super(EventHandlerTestCase, self).setUp()
-
+        self._lazy_patch_autospec_class(
+            eventhandler.serialconsoleops.SerialConsoleOps)
         self._state_change_callback = mock.Mock()
         self._running_state_callback = mock.Mock()
         self.flags(
@@ -43,7 +44,6 @@ class EventHandlerTestCase(test_base.HyperVBaseTestCase):
 
         self._event_handler = eventhandler.InstanceEventHandler(
             self._state_change_callback)
-        self._event_handler._serial_console_ops = mock.Mock()
 
     @mock.patch.object(eventhandler.InstanceEventHandler,
                        '_get_instance_uuid')

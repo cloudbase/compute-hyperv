@@ -28,9 +28,9 @@ class RDPConsoleOpsTestCase(test_base.HyperVBaseTestCase):
     @mock.patch.object(rdpconsoleops.hostops, 'api', mock.MagicMock())
     def setUp(self):
         super(RDPConsoleOpsTestCase, self).setUp()
+        self._lazy_patch_autospec_class(rdpconsoleops.hostops.HostOps)
 
         self.rdpconsoleops = rdpconsoleops.RDPConsoleOps()
-        self.rdpconsoleops._hostops = mock.MagicMock()
         self.rdpconsoleops._vmutils = mock.MagicMock()
         self.rdpconsoleops._rdpconsoleutils = mock.MagicMock()
 

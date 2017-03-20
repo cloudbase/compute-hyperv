@@ -31,16 +31,21 @@ class LiveMigrationOpsTestCase(test_base.HyperVBaseTestCase):
     def setUp(self):
         super(LiveMigrationOpsTestCase, self).setUp()
         self.context = 'fake_context'
-        self._livemigrops = livemigrationops.LiveMigrationOps()
-        self._livemigrops._block_dev_man = mock.MagicMock()
-        self._livemigrops._pathutils = mock.MagicMock()
+        self._lazy_patch_autospec_class(
+            livemigrationops.pathutils.PathUtils,
+            livemigrationops.vmops.VMOps,
+            livemigrationops.volumeops.VolumeOps,
+            livemigrationops.serialconsoleops.SerialConsoleOps,
+            livemigrationops.imagecache.ImageCache,
+            livemigrationops.block_device_manager.BlockDeviceInfoManager,
+        )
 
-    @mock.patch.object(serialconsoleops.SerialConsoleOps,
-                       'stop_console_handler')
-    @mock.patch('hyperv.nova.vmops.VMOps.copy_vm_dvd_disks')
-    def _test_live_migration(self, mock_copy_dvd_disks,
-                             mock_stop_console_handler, side_effect=None,
-                             shared_storage=False):
+        self._livemigrops = livemigrationops.LiveMigrationOps()
+
+    def _test_live_migration(self, side_effect=None, shared_storage=False):
+        mock_copy_dvd_disks = self._livemigrops._vmops.copy_vm_dvd_disks
+        mock_stop_console_handler = (
+            self._livemigrops._serial_console_ops.stop_console_handler)
         mock_instance = fake_instance.fake_instance_obj(self.context)
         mock_post = mock.MagicMock()
         mock_recover = mock.MagicMock()
@@ -94,14 +99,12 @@ class LiveMigrationOpsTestCase(test_base.HyperVBaseTestCase):
     def test_live_migration_exception(self):
         self._test_live_migration(side_effect=os_win_exc.HyperVException)
 
-    @mock.patch('hyperv.nova.volumeops.VolumeOps.get_disk_path_mapping')
-    @mock.patch('hyperv.nova.imagecache.ImageCache.get_cached_image')
-    @mock.patch('hyperv.nova.volumeops.VolumeOps'
-                '.connect_volumes')
-    def _test_pre_live_migration(self, mock_connect_volumes,
-                                 mock_get_cached_image,
-                                 mock_get_disk_path_mapping,
-                                 phys_disks_attached=True):
+    def _test_pre_live_migration(self, phys_disks_attached=True):
+        mock_connect_volumes = self._livemigrops._volumeops.connect_volumes
+        mock_get_cached_image = self._livemigrops._imagecache.get_cached_image
+        mock_get_disk_path_mapping = (
+            self._livemigrops._volumeops.get_disk_path_mapping)
+
         mock_instance = fake_instance.fake_instance_obj(self.context)
         mock_instance.image_ref = "fake_image_ref"
         mock_get_disk_path_mapping.return_value = (
@@ -140,8 +143,9 @@ class LiveMigrationOpsTestCase(test_base.HyperVBaseTestCase):
     def test_pre_live_migration_without_phys_disks_attached(self):
         self._test_pre_live_migration(phys_disks_attached=False)
 
-    @mock.patch('hyperv.nova.volumeops.VolumeOps.disconnect_volumes')
-    def test_post_live_migration(self, mock_disconnect_volumes):
+    def test_post_live_migration(self):
+        mock_disconnect_volumes = (
+            self._livemigrops._volumeops.disconnect_volumes)
         self._livemigrops.post_live_migration(
             self.context, mock.sentinel.instance,
             mock.sentinel.block_device_info)
@@ -150,8 +154,8 @@ class LiveMigrationOpsTestCase(test_base.HyperVBaseTestCase):
         self._livemigrops._pathutils.get_instance_dir.assert_called_once_with(
             mock.sentinel.instance.name, create_dir=False, remove_dir=True)
 
-    @mock.patch.object(livemigrationops.vmops.VMOps, 'post_start_vifs')
-    def test_post_live_migration_at_destination(self, mock_post_start_vifs):
+    def test_post_live_migration_at_destination(self):
+        mock_post_start_vifs = self._livemigrops._vmops.post_start_vifs
         self._livemigrops.post_live_migration_at_destination(
             mock.sentinel.context, mock.sentinel.instance,
             mock.sentinel.network_info, mock.sentinel.block_migration)

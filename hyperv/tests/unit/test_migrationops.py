@@ -34,18 +34,19 @@ class MigrationOpsTestCase(test_base.HyperVBaseTestCase):
 
     def setUp(self):
         super(MigrationOpsTestCase, self).setUp()
-        self.context = 'fake-context'
+        self._lazy_patch_autospec_class(
+            migrationops.pathutils.PathUtils,
+            migrationops.volumeops.VolumeOps,
+            migrationops.vmops.VMOps,
+            migrationops.imagecache.ImageCache,
+            migrationops.block_device_manager.BlockDeviceInfoManager,
+        )
 
+        self.context = 'fake-context'
         self._migrationops = migrationops.MigrationOps()
         self._migrationops._hostutils = mock.MagicMock()
-        self._migrationops._vmops = mock.MagicMock()
         self._migrationops._vmutils = mock.MagicMock()
-        self._migrationops._pathutils = mock.Mock()
         self._migrationops._vhdutils = mock.MagicMock()
-        self._migrationops._pathutils = mock.MagicMock()
-        self._migrationops._volumeops = mock.MagicMock()
-        self._migrationops._imagecache = mock.MagicMock()
-        self._migrationops._block_dev_manager = mock.MagicMock()
 
     @mock.patch.object(migrationops.shutil, 'move')
     def test_move_disk_files(self, mock_move):
