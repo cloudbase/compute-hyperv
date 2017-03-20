@@ -20,6 +20,7 @@ import mock
 from nova.compute import vm_states
 from nova import exception
 from nova.objects import flavor as flavor_obj
+from nova.openstack.common import fileutils
 from nova.tests.unit.objects import test_flavor
 from nova.tests.unit.objects import test_virtual_interface
 from nova.virt import hardware
@@ -27,7 +28,6 @@ from os_win import constants as os_win_const
 from os_win import exceptions as os_win_exc
 from oslo_concurrency import processutils
 from oslo_config import cfg
-from oslo_utils import fileutils
 from oslo_utils import units
 import six
 
@@ -260,7 +260,7 @@ class VMOpsTestCase(test_base.HyperVBaseTestCase):
     def test_is_resize_needed_exception(self):
         inst = mock.MagicMock()
         self.assertRaises(
-            exception.FlavorDiskSmallerThanImage,
+            exception.FlavorDiskTooSmall,
             self._vmops._is_resize_needed,
             mock.sentinel.FAKE_PATH, self.FAKE_SIZE, self.FAKE_SIZE - 1, inst)
 
@@ -589,8 +589,7 @@ class VMOpsTestCase(test_base.HyperVBaseTestCase):
                               block_device_info=block_device_info,
                               root_device=root_device_info,
                               vm_gen=vm_gen,
-                              image_meta=mock.sentinel.image_meta,
-                              host_shutdown_action=exp_host_shutdown_action)
+                              image_meta=mock.sentinel.image_meta)
         else:
             self._vmops.create_instance(
                     instance=mock_instance,
@@ -598,8 +597,7 @@ class VMOpsTestCase(test_base.HyperVBaseTestCase):
                     block_device_info=block_device_info,
                     root_device=root_device_info,
                     vm_gen=vm_gen,
-                    image_meta=mock.sentinel.image_meta,
-                    host_shutdown_action=exp_host_shutdown_action)
+                    image_meta=mock.sentinel.image_meta)
             if remotefx is True:
                 mock_configure_remotefx.assert_called_once_with(
                     mock_instance,
@@ -953,7 +951,9 @@ class VMOpsTestCase(test_base.HyperVBaseTestCase):
             self._vmops._serial_console_ops.stop_console_handler_unsync)
         stop_console_handler.assert_called_once_with(mock_instance.name)
         self._vmops._pathutils.get_instance_dir.assert_called_once_with(
-            mock_instance.name, create_dir=False, remove_dir=True)
+            mock_instance.name)
+        self._vmops._pathutils.check_remove_dir.assert_called_once_with(
+            self._vmops._pathutils.get_instance_dir.return_value)
 
     @mock.patch('hyperv.nova.volumeops.VolumeOps.disconnect_volumes')
     @mock.patch('hyperv.nova.vmops.VMOps._delete_disk_files')
@@ -978,12 +978,10 @@ class VMOpsTestCase(test_base.HyperVBaseTestCase):
         mock_disconnect_volumes.assert_called_once_with(
             mock.sentinel.FAKE_BD_INFO)
         mock_delete_disk_files.assert_called_once_with(
-            mock_instance.name)
+            mock_instance.name,
+            self._vmops._pathutils.get_instance_dir.return_value)
         mock_unplug_vifs.assert_called_once_with(
             mock_instance, mock.sentinel.fake_network_info)
-        mock_clear_dir_cache = (
-            self._vmops._pathutils.remove_instance_dir_from_cache)
-        mock_clear_dir_cache.assert_called_once_with(mock_instance.name)
 
     def test_destroy_inexistent_instance(self):
         mock_instance = fake_instance.fake_instance_obj(self.context)
@@ -1453,9 +1451,8 @@ class VMOpsTestCase(test_base.HyperVBaseTestCase):
                           mock_instance)
 
     @mock.patch.object(vmops.hardware, 'numa_get_constraints')
-    @mock.patch.object(vmops.objects.ImageMeta, 'from_dict')
-    def _check_get_instance_vnuma_config_exception(self, mock_from_dict,
-                                                   mock_get_numa, numa_cells):
+    def _check_get_instance_vnuma_config_exception(self, mock_get_numa,
+                                                   numa_cells):
         flavor = {'extra_specs': {}}
         mock_instance = mock.MagicMock(flavor=flavor)
         image_meta = mock.MagicMock(properties={})
@@ -1483,9 +1480,8 @@ class VMOpsTestCase(test_base.HyperVBaseTestCase):
         self._check_get_instance_vnuma_config_exception(numa_cells=[cell])
 
     @mock.patch.object(vmops.hardware, 'numa_get_constraints')
-    @mock.patch.object(vmops.objects.ImageMeta, 'from_dict')
     def _check_get_instance_vnuma_config(
-                self, mock_from_dict, mock_get_numa, numa_topology=None,
+                self, mock_get_numa, numa_topology=None,
                 expected_mem_per_numa=None, expected_cpus_per_numa=None):
         mock_instance = mock.MagicMock()
         image_meta = mock.MagicMock()

@@ -173,8 +173,8 @@ class MigrationOps(object):
                 self._vmops.attach_config_drive(instance, configdrive_path,
                                                 vm_gen)
             else:
-                raise exception.ConfigDriveNotFound(
-                    instance_uuid=instance.uuid)
+                raise exception.DiskNotFound(_LE(
+                    "No configdrive found for instance: %s" % instance.name))
 
     def finish_revert_migration(self, context, instance, network_info,
                                 block_device_info=None, power_on=True):

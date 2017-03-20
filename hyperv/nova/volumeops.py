@@ -423,11 +423,10 @@ class ISCSIVolumeDriver(BaseVolumeDriver):
         auth_method = connection_properties.get('auth_method')
 
         if auth_method and auth_method.upper() != 'CHAP':
-            LOG.error(_LE("Unsupported iSCSI authentication "
-                          "method: %(auth_method)s."),
-                      dict(auth_method=auth_method))
-            raise exception.UnsupportedBDMVolumeAuthMethod(
-                auth_method=auth_method)
+            reason = _LE("Unsupported iSCSI authentication method: "
+                         "%s." % auth_method)
+            LOG.error(reason)
+            raise exception.InvalidVolume(reason=reason)
 
         volume_connected = False
         for (initiator_name,

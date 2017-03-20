@@ -131,10 +131,6 @@ class ClusterLiveMigrationOpsTestCase(test_base.HyperVBaseTestCase):
                                              mock.sentinel.fake_instance,
                                              mock.sentinel.bdi)
 
-        mock_clear_dir_cache = (
-            self.livemigrops._pathutils.remove_instance_dir_from_cache)
-        mock_clear_dir_cache.assert_called_once_with(mock_instance.name)
-
         self.assertFalse(mock_post_live_migration.called)
 
     @mock.patch.object(base_livemigrationops.LiveMigrationOps,

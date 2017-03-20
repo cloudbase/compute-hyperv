@@ -138,9 +138,10 @@ class BlockDeviceManagerTestCase(test_base.HyperVBaseTestCase):
                        'is_boot_from_volume', return_value=False)
     def test_check_and_update_root_device_exception(self, mock_is_boot_vol):
         bdi = {}
-        image_meta = mock.MagicMock(disk_format=mock.sentinel.fake_format)
+        image_meta = dict(id=mock.sentinel.id,
+                          disk_format=mock.sentinel.fake_format)
 
-        self.assertRaises(exception.InvalidImageFormat,
+        self.assertRaises(exception.ImageUnacceptable,
                           self._bdman._check_and_update_root_device,
                           constants.VM_GEN_1, image_meta, bdi,
                           mock.sentinel.SLOT_MAP)

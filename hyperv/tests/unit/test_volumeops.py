@@ -615,7 +615,7 @@ class ISCSIVolumeDriverTestCase(test_base.HyperVBaseTestCase):
 
     def test_connect_volume_invalid_auth_method(self):
         conn_info = get_fake_connection_info(auth_method='fake_auth')
-        self.assertRaises(exception.UnsupportedBDMVolumeAuthMethod,
+        self.assertRaises(exception.InvalidVolume,
                           self._volume_driver.connect_volume,
                           conn_info)
 
