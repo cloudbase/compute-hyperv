@@ -18,24 +18,23 @@ import mock
 from nova import exception
 
 from hyperv.nova import constants
-from hyperv.nova import pathutils
 from hyperv.nova import serialconsolehandler
 from hyperv.nova import serialproxy
 from hyperv.tests.unit import test_base
 
 
 class SerialConsoleHandlerTestCase(test_base.HyperVBaseTestCase):
-    @mock.patch.object(pathutils.PathUtils, 'get_vm_console_log_paths')
-    def setUp(self, mock_get_log_paths):
+    def setUp(self):
         super(SerialConsoleHandlerTestCase, self).setUp()
+        self._lazy_patch_autospec_class(
+            serialconsolehandler.pathutils.PathUtils)
 
-        mock_get_log_paths.return_value = [mock.sentinel.log_path]
+        pathutils = serialconsolehandler.pathutils.PathUtils()
+        pathutils.get_vm_console_log_paths.return_value = [
+            mock.sentinel.log_path]
 
         self._consolehandler = serialconsolehandler.SerialConsoleHandler(
             mock.sentinel.instance_name)
-
-        self._consolehandler._log_path = mock.sentinel.log_path
-        self._consolehandler._pathutils = mock.Mock()
         self._consolehandler._vmutils = mock.Mock()
 
     @mock.patch.object(serialconsolehandler.SerialConsoleHandler,

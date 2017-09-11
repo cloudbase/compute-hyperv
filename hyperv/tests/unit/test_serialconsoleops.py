@@ -26,9 +26,11 @@ from hyperv.tests.unit import test_base
 class SerialConsoleOpsTestCase(test_base.HyperVBaseTestCase):
     def setUp(self):
         super(SerialConsoleOpsTestCase, self).setUp()
+        self._lazy_patch_autospec_class(
+            serialconsoleops.pathutils.PathUtils)
+
         serialconsoleops._console_handlers = {}
         self._serialops = serialconsoleops.SerialConsoleOps()
-        self._serialops._pathutils = mock.MagicMock()
 
     def _setup_console_handler_mock(self):
         mock_console_handler = mock.Mock()

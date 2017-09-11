@@ -17,7 +17,7 @@ import functools
 import os
 
 from nova import exception
-from nova.i18n import _LI, _LE  # noqa
+from nova.i18n import _, _LI, _LE  # noqa
 from nova import utils
 from os_win import utilsfactory
 from oslo_config import cfg
@@ -102,7 +102,7 @@ class SerialConsoleOps(object):
                         log += fp.read()
             return log
         except IOError as err:
-            mgs = (_("Could not get instance %(instance_name)s "
+            msg = (_("Could not get instance %(instance_name)s "
                      "console output. Error: %(err)s") %
                    {'instance_name': instance_name,
                     'err': six.text_type(err)})

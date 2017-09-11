@@ -25,12 +25,15 @@ from hyperv.tests.unit import test_base
 
 class HyperVClusterTestCase(test_base.HyperVBaseTestCase):
 
-    @mock.patch.object(clusterops, 'ClusterOps')
     @mock.patch.object(base_driver.hostops, 'api', mock.MagicMock())
     @mock.patch.object(base_driver.HyperVDriver,
                        '_check_minimum_windows_version')
-    def setUp(self, mock_check_minimum_windows_version, mock_clusterops_init):
+    def setUp(self, mock_check_minimum_windows_version):
         super(HyperVClusterTestCase, self).setUp()
+        self._lazy_patch_autospec_class(
+            driver.livemigrationops.ClusterLiveMigrationOps,
+            clusterops.ClusterOps,
+        )
 
         self.context = 'context'
         self.driver = driver.HyperVClusterDriver(mock.sentinel.virtapi)

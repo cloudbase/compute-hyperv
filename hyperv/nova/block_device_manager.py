@@ -88,8 +88,11 @@ class BlockDeviceInfoManager(object):
             root_disk['type'] = self._TYPE_FOR_DISK_FORMAT.get(
                 image_meta['disk_format'])
             if root_disk['type'] is None:
-                raise exception.InvalidImageFormat(
-                    format=image_meta['disk_format'])
+                reason = _("Invalid image format: %s") % (
+                    image_meta['disk_format'])
+                raise exception.ImageUnacceptable(
+                    image_id=image_meta['id'],
+                    reason=reason)
             root_disk['path'] = None
             root_disk['connection_info'] = None
 

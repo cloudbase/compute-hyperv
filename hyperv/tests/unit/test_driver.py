@@ -40,17 +40,20 @@ class HyperVDriverTestCase(test_base.HyperVBaseTestCase):
         super(HyperVDriverTestCase, self).setUp()
 
         self.context = 'context'
+        self._lazy_patch_autospec_class(
+            driver.hostops.HostOps,
+            driver.volumeops.VolumeOps,
+            driver.vmops.VMOps,
+            driver.snapshotops.SnapshotOps,
+            driver.livemigrationops.LiveMigrationOps,
+            driver.migrationops.MigrationOps,
+            driver.rdpconsoleops.RDPConsoleOps,
+            driver.serialconsoleops.SerialConsoleOps,
+            driver.imagecache.ImageCache,
+            driver.pathutils.PathUtils,
+        )
+
         self.driver = driver.HyperVDriver(mock.sentinel.virtapi)
-        self.driver._hostops = mock.MagicMock()
-        self.driver._volumeops = mock.MagicMock()
-        self.driver._vmops = mock.MagicMock()
-        self.driver._snapshotops = mock.MagicMock()
-        self.driver._livemigrationops = mock.MagicMock()
-        self.driver._migrationops = mock.MagicMock()
-        self.driver._rdpconsoleops = mock.MagicMock()
-        self.driver._serialconsoleops = mock.MagicMock()
-        self.driver._imagecache = mock.MagicMock()
-        self.driver._pathutils = mock.MagicMock()
 
     @mock.patch.object(driver.utilsfactory, 'get_hostutils')
     def test_check_minimum_windows_version(self, mock_get_hostutils):

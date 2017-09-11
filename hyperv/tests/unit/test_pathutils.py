@@ -190,44 +190,6 @@ class PathUtilsTestCase(test_base.HyperVBaseTestCase):
             create_dir=mock.sentinel.create_dir,
             remove_dir=mock.sentinel.remove_dir)
 
-    @ddt.data({},
-              {'remote_server': mock.sentinel.remote_server,
-               'cached_dir': mock.sentinel.cached_dir},
-              {'cached_dir': mock.sentinel.cached_dir})
-    @ddt.unpack
-    @mock.patch('os.path.exists')
-    @mock.patch.object(pathutils.PathUtils, '_check_dir')
-    @mock.patch.object(pathutils.PathUtils, '_get_instances_sub_dir')
-    def test_instance_dir_cache(self, mock_get_subdir,
-                                mock_check_dir, mock_exists,
-                                remote_server=None, cached_dir=None):
-        mock_exists.return_value = True
-        dir_cache = self._pathutils._instance_dir_cache
-
-        if cached_dir:
-            dir_cache[self.fake_instance_name] = cached_dir
-
-        inst_dir = self._pathutils.get_instance_dir(self.fake_instance_name,
-                                                    remote_server)
-
-        expected_dir = (cached_dir
-                        if cached_dir and not remote_server
-                        else mock_get_subdir.return_value)
-
-        self.assertEqual(expected_dir,
-                         inst_dir)
-        if not remote_server:
-            self.assertEqual(expected_dir,
-                             dir_cache[self.fake_instance_name])
-
-    def test_remove_instance_dir_from_cache(self):
-        dir_cache = self._pathutils._instance_dir_cache
-        dir_cache[self.fake_instance_name] = mock.sentinel.inst_dir
-
-        self._pathutils.remove_instance_dir_from_cache(
-            self.fake_instance_name)
-        self.assertEqual({}, dir_cache)
-
     def _mock_lookup_configdrive_path(self, ext, rescue=False):
         self._pathutils.get_instance_dir = mock.MagicMock(
             return_value=self.fake_instance_dir)

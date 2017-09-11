@@ -32,19 +32,19 @@ class ClusterOpsTestCase(test_base.HyperVBaseTestCase):
 
     _FAKE_INSTANCE_NAME = 'fake_instance_name'
 
-    @mock.patch('nova.network.API')
-    def setUp(self, mock_network_api):
+    def setUp(self):
         super(ClusterOpsTestCase, self).setUp()
-        self.context = 'fake_context'
+        self._lazy_patch_autospec_class(
+            clusterops.pathutils.PathUtils,
+            clusterops.network.API,
+            clusterops.vmops.VMOps,
+            clusterops.serialconsoleops.SerialConsoleOps)
 
+        self.context = 'fake_context'
         self.clusterops = clusterops.ClusterOps()
         self.clusterops._context = self.context
         self.clusterops._clustutils = mock.MagicMock()
         self.clusterops._vmutils = mock.MagicMock()
-        self.clusterops._network_api = mock.MagicMock()
-        self.clusterops._vmops = mock.MagicMock()
-        self.clusterops._pathutils = mock.MagicMock()
-        self.clusterops._serial_console_ops = mock.MagicMock()
 
     def test_get_instance_host(self):
         mock_instance = fake_instance.fake_instance_obj(self.context)

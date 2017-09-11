@@ -34,112 +34,86 @@ class MigrationOpsTestCase(test_base.HyperVBaseTestCase):
 
     def setUp(self):
         super(MigrationOpsTestCase, self).setUp()
-        self.context = 'fake-context'
+        self._lazy_patch_autospec_class(
+            migrationops.pathutils.PathUtils,
+            migrationops.volumeops.VolumeOps,
+            migrationops.vmops.VMOps,
+            migrationops.imagecache.ImageCache,
+            migrationops.block_device_manager.BlockDeviceInfoManager,
+        )
 
+        self.context = 'fake-context'
         self._migrationops = migrationops.MigrationOps()
         self._migrationops._hostutils = mock.MagicMock()
-        self._migrationops._vmops = mock.MagicMock()
         self._migrationops._vmutils = mock.MagicMock()
-        self._migrationops._pathutils = mock.Mock()
         self._migrationops._vhdutils = mock.MagicMock()
-        self._migrationops._pathutils = mock.MagicMock()
-        self._migrationops._volumeops = mock.MagicMock()
-        self._migrationops._imagecache = mock.MagicMock()
-        self._migrationops._block_dev_manager = mock.MagicMock()
 
-    def _check_migrate_disk_files(self, shared_storage=False):
+    @mock.patch.object(migrationops.shutil, 'move')
+    def test_move_disk_files(self, mock_move):
+        mock_instance = fake_instance.fake_instance_obj(self.context)
         instance_path = 'fake/instance/path'
         dest_instance_path = 'remote/instance/path'
-        self._migrationops._pathutils.get_instance_dir.side_effect = (
-            instance_path, dest_instance_path)
-        get_revert_dir = (
-            self._migrationops._pathutils.get_instance_migr_revert_dir)
-        check_shared_storage = (
-            self._migrationops._pathutils.check_dirs_shared_storage)
-        check_shared_storage.return_value = shared_storage
-        self._migrationops._pathutils.exists.return_value = True
-
-        expected_get_dir = [mock.call(mock.sentinel.instance_name),
-                            mock.call(mock.sentinel.instance_name,
-                                      mock.sentinel.dest_path)]
-        expected_move_calls = [mock.call(instance_path,
-                                         get_revert_dir.return_value)]
-
-        self._migrationops._migrate_disk_files(
-            instance_name=mock.sentinel.instance_name,
-            disk_files=[self._FAKE_DISK],
-            dest=mock.sentinel.dest_path)
-
-        self._migrationops._pathutils.exists.assert_called_once_with(
-            dest_instance_path)
-        check_shared_storage.assert_called_once_with(
-            instance_path, dest_instance_path)
-        get_revert_dir.assert_called_with(mock.sentinel.instance_name,
-                                          remove_dir=True, create_dir=True)
-        if shared_storage:
-            fake_dest_path = '%s_tmp' % instance_path
-            expected_move_calls.append(mock.call(fake_dest_path,
-                                                 instance_path))
-        else:
-            fake_dest_path = dest_instance_path
-
-        self._migrationops._pathutils.makedirs.assert_called_once_with(
-            fake_dest_path)
-        check_remove_dir = self._migrationops._pathutils.check_remove_dir
-        check_remove_dir.assert_called_once_with(fake_dest_path)
-
-        self._migrationops._pathutils.get_instance_dir.assert_has_calls(
-            expected_get_dir)
-        self._migrationops._pathutils.copy.assert_called_once_with(
-            self._FAKE_DISK, fake_dest_path)
-        self._migrationops._pathutils.move_folder_files.assert_has_calls(
-            expected_move_calls)
-
-    def test_migrate_disk_files(self):
-        self._check_migrate_disk_files()
-
-    def test_migrate_disk_files_same_host(self):
-        self._check_migrate_disk_files(shared_storage=True)
-
-    @mock.patch.object(migrationops.MigrationOps,
-                       '_cleanup_failed_disk_migration')
-    def test_migrate_disk_files_exception(self, mock_cleanup):
-        instance_path = 'fake/instance/path'
-        fake_dest_path = '%s_tmp' % instance_path
         self._migrationops._pathutils.get_instance_dir.return_value = (
             instance_path)
         get_revert_dir = (
             self._migrationops._pathutils.get_instance_migr_revert_dir)
+        get_temp_dir = (
+            self._migrationops._pathutils.get_instnace_migr_temp_dir)
+
+        self._migrationops._move_disk_files(
+            instance=mock_instance,
+            disk_files=[self._FAKE_DISK],
+            dest=mock.sentinel.dest_path)
+
+        get_revert_dir.assert_called_with(mock_instance.name,
+                                          remove_dir=True, create_dir=True)
+        get_instance_dir = self._migrationops._pathutils.get_instance_dir
+        get_instance_dir.assert_called_once_with(mock_instance.name)
+        self._migrationops._pathutils.copy.assert_called_once_with(
+            self._FAKE_DISK, get_temp_dir.return_value)
+        mock_move.assert_called_once_with(instance_path,
+                                          get_revert_dir.return_value)
+
+    @mock.patch.object(migrationops.MigrationOps,
+                       '_cleanup_failed_disk_migration')
+    def test_move_disk_files_exception(self, mock_cleanup):
+        mock_instance = fake_instance.fake_instance_obj(self.context)
+        instance_path = 'fake/instance/path'
+        self._migrationops._pathutils.get_instance_dir.return_value = (
+            instance_path)
+        get_revert_dir = (
+            self._migrationops._pathutils.get_instance_migr_revert_dir)
+        get_temp_dir = (
+            self._migrationops._pathutils.get_instnace_migr_temp_dir)
         self._migrationops._hostutils.get_local_ips.return_value = [
             mock.sentinel.dest_path]
         self._migrationops._pathutils.copy.side_effect = IOError(
             "Expected exception.")
 
-        self.assertRaises(IOError, self._migrationops._migrate_disk_files,
-                          instance_name=mock.sentinel.instance_name,
+        self.assertRaises(IOError, self._migrationops._move_disk_files,
+                          instance=mock_instance,
                           disk_files=[self._FAKE_DISK],
                           dest=mock.sentinel.dest_path)
         mock_cleanup.assert_called_once_with(instance_path,
                                              get_revert_dir.return_value,
-                                             fake_dest_path)
+                                             get_temp_dir.return_value)
 
-    def test_cleanup_failed_disk_migration(self):
+    @mock.patch.object(migrationops.shutil, 'move')
+    def test_cleanup_failed_disk_migration(self, mock_move):
         self._migrationops._pathutils.exists.return_value = True
 
         self._migrationops._cleanup_failed_disk_migration(
             instance_path=mock.sentinel.instance_path,
             revert_path=mock.sentinel.revert_path,
-            dest_path=mock.sentinel.dest_path)
+            temp_path=mock.sentinel.temp_path)
 
-        expected = [mock.call(mock.sentinel.dest_path),
+        expected = [mock.call(mock.sentinel.temp_path),
                     mock.call(mock.sentinel.revert_path)]
         self._migrationops._pathutils.exists.assert_has_calls(expected)
-        move_folder_files = self._migrationops._pathutils.move_folder_files
-        move_folder_files.assert_called_once_with(
+        mock_move.assert_called_once_with(
             mock.sentinel.revert_path, mock.sentinel.instance_path)
         self._migrationops._pathutils.rmtree.assert_has_calls([
-            mock.call(mock.sentinel.dest_path),
-            mock.call(mock.sentinel.revert_path)])
+            mock.call(mock.sentinel.temp_path)])
 
     def _test_check_target_flavor(self, root_gb, bdi):
         mock_instance = fake_instance.fake_instance_obj(self.context)
@@ -177,15 +151,15 @@ class MigrationOpsTestCase(test_base.HyperVBaseTestCase):
         instance.config_drive = 'True'
         self._migrationops._pathutils.lookup_configdrive_path.return_value = (
             None)
-        self.assertRaises(exception.ConfigDriveNotFound,
+        self.assertRaises(exception.DiskNotFound,
                           self._migrationops._check_and_attach_config_drive,
                           instance,
                           mock.sentinel.FAKE_VM_GEN)
 
-    @mock.patch.object(migrationops.MigrationOps, '_migrate_disk_files')
+    @mock.patch.object(migrationops.MigrationOps, '_move_disk_files')
     @mock.patch.object(migrationops.MigrationOps, '_check_target_flavor')
     def test_migrate_disk_and_power_off(self, mock_check_flavor,
-                                        mock_migrate_disk_files):
+                                        mock_move_disk_files):
         instance = fake_instance.fake_instance_obj(self.context)
         flavor = mock.MagicMock()
         network_info = mock.MagicMock()
@@ -206,8 +180,8 @@ class MigrationOpsTestCase(test_base.HyperVBaseTestCase):
         self._migrationops._vmops.power_off.assert_called_once_with(
             instance, self._FAKE_TIMEOUT, self._FAKE_RETRY_INTERVAL)
         mock_get_vm_st_path.assert_called_once_with(instance.name)
-        mock_migrate_disk_files.assert_called_once_with(
-            instance.name, disk_files, mock.sentinel.FAKE_DEST)
+        mock_move_disk_files.assert_called_once_with(
+            instance, disk_files, mock.sentinel.FAKE_DEST)
         self._migrationops._vmops.destroy.assert_called_once_with(
             instance, destroy_disks=False)
 
@@ -220,10 +194,6 @@ class MigrationOpsTestCase(test_base.HyperVBaseTestCase):
             self._migrationops._pathutils.get_instance_migr_revert_dir)
         get_instance_migr_revert_dir.assert_called_with(mock_instance.name,
                                                         remove_dir=True)
-
-        mock_clear_dir_cache = (
-            self._migrationops._pathutils.remove_instance_dir_from_cache)
-        mock_clear_dir_cache.assert_called_once_with(mock_instance.name)
 
     def test_revert_migration_files(self):
         instance_path = (
@@ -394,6 +364,8 @@ class MigrationOpsTestCase(test_base.HyperVBaseTestCase):
             mock.sentinel.diff_vhd_path, fake_base_vhd)
 
     @mock.patch.object(migrationops.MigrationOps,
+                       '_migrate_disks_from_source')
+    @mock.patch.object(migrationops.MigrationOps,
                        '_check_and_attach_config_drive')
     @mock.patch.object(migrationops.MigrationOps, '_check_base_disk')
     @mock.patch.object(migrationops.MigrationOps, '_check_resize_vhd')
@@ -402,6 +374,7 @@ class MigrationOpsTestCase(test_base.HyperVBaseTestCase):
                                 mock_check_resize_vhd,
                                 mock_check_base_disk,
                                 mock_check_attach_config_drive,
+                                mock_migrate_disks_from_source,
                                 block_device_info):
         mock_instance = fake_instance.fake_instance_obj(self.context)
         mock_instance.ephemeral_gb = 1
@@ -446,6 +419,8 @@ class MigrationOpsTestCase(test_base.HyperVBaseTestCase):
         mock_check_resize_vhd.assert_has_calls(expected_check_resize)
         self._migrationops._vhdutils.get_vhd_info.assert_has_calls(
             expected_get_info)
+        mock_migrate_disks_from_source.assert_called_once_with(
+            mock.sentinel.migration, mock_instance, mock.sentinel.disk_info)
         get_image_vm_gen = self._migrationops._vmops.get_image_vm_generation
         get_image_vm_gen.assert_called_once_with(mock_instance.uuid,
                                                  mock.sentinel.image_meta)
@@ -477,7 +452,9 @@ class MigrationOpsTestCase(test_base.HyperVBaseTestCase):
         self._check_finish_migration(
             block_device_info=bdi)
 
-    def test_finish_migration_no_root(self):
+    @mock.patch.object(migrationops.MigrationOps,
+                       '_migrate_disks_from_source')
+    def test_finish_migration_no_root(self, mock_migrate_disks_from_source):
         root_device = {'type': constants.DISK}
         bdi = {'root_disk': root_device,
                'ephemerals': []
