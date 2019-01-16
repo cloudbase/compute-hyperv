@@ -83,7 +83,7 @@ class PlacementUtilsTestCase(test_base.HyperVBaseTestCase):
 
         mock_get_allocs.assert_called_once_with(
             self.context, mock.sentinel.consumer,
-            version=placement.CONSUMER_GENERATION_VERSION)
+            version=placement.SYMMETRIC_GET_PUT_ALLOCATIONS)
         mock_put.assert_not_called()
 
     @ddt.data(True, False)
@@ -111,7 +111,7 @@ class PlacementUtilsTestCase(test_base.HyperVBaseTestCase):
         mock_put.assert_called_once_with(
             self.context, mock.sentinel.consumer,
             {'allocations': exp_allocs},
-            version=placement.CONSUMER_GENERATION_VERSION)
+            version=placement.SYMMETRIC_GET_PUT_ALLOCATIONS)
 
     @ddt.data({},  # no errors
               {'status_code': 409,
@@ -136,8 +136,7 @@ class PlacementUtilsTestCase(test_base.HyperVBaseTestCase):
         self.client.put.assert_called_once_with(
             '/allocations/%s' % mock.sentinel.consumer,
             mock.sentinel.allocs,
-            version=mock.sentinel.version,
-            global_request_id=self.context.global_id)
+            version=mock.sentinel.version)
 
     def test_get_allocs(self):
         ret_val = self.placement._get_allocs_for_consumer(
@@ -147,8 +146,7 @@ class PlacementUtilsTestCase(test_base.HyperVBaseTestCase):
 
         self.client.get.assert_called_once_with(
             '/allocations/%s' % mock.sentinel.consumer,
-            version=mock.sentinel.version,
-            global_request_id=self.context.global_id)
+            version=mock.sentinel.version)
 
     def test_get_allocs_missing(self):
         self.client.get.return_value = fake_requests.FakeResponse(500)
