@@ -121,8 +121,7 @@ class ImageCache(imagecache.ImageCacheManager):
 
             if not image_path:
                 try:
-                    images.fetch(context, image_id, base_image_path,
-                                 instance.trusted_certs)
+                    images.fetch(context, image_id, base_image_path)
                     if image_type == 'iso':
                         format_ext = 'iso'
                     else:

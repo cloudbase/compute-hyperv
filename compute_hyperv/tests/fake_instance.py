@@ -40,7 +40,6 @@ def fake_db_instance(**updates):
                   'flavor': flavorinfo,
                   'numa_topology': None,
                   'vcpu_model': None,
-                  'trusted_certs': None,
                  },
         'tags': [],
         'services': []

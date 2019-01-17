@@ -49,9 +49,7 @@ class ImageCacheTestCase(test_base.HyperVBaseTestCase):
         super(ImageCacheTestCase, self).setUp()
 
         self.context = 'fake-context'
-        self.instance = fake_instance.fake_instance_obj(
-            self.context,
-            expected_attrs=['trusted_certs'])
+        self.instance = fake_instance.fake_instance_obj(self.context)
 
         self.imagecache = imagecache.ImageCache()
         self.tmpdir = self.useFixture(fixtures.TempDir()).path
@@ -122,8 +120,7 @@ class ImageCacheTestCase(test_base.HyperVBaseTestCase):
         self.assertEqual(expected_image_path, result)
 
         mock_fetch.assert_called_once_with(self.context, self.FAKE_IMAGE_REF,
-                                           expected_path,
-                                           self.instance.trusted_certs)
+                                           expected_path)
         self.imagecache._vhdutils.get_vhd_format.assert_called_once_with(
             expected_path)
         self.imagecache._pathutils.rename.assert_called_once_with(
@@ -181,8 +178,7 @@ class ImageCacheTestCase(test_base.HyperVBaseTestCase):
 
         mock_fetch.assert_called_once_with(self.context,
                                            fake_rescue_image_id,
-                                           expected_path,
-                                           self.instance.trusted_certs)
+                                           expected_path)
         self.imagecache._vhdutils.get_vhd_info.assert_called_once_with(
             expected_vhd_path)
 
